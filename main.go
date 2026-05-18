@@ -25,7 +25,7 @@ import (
 /**
  * @brief Starts the Task API server.
  *
- * Initialisation order:
+ * Initialization order:
  *   1. Read config from environment (with fallbacks).
  *   2. Open SQLite database and apply schema migrations.
  *   3. Build the composed HTTP handler via server.New.

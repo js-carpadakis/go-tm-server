@@ -158,7 +158,7 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task := h.getTask(r, taskID, userID)
+	task := h.Task(r, taskID, userID)
 	if task == nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -182,7 +182,7 @@ func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid task id")
 		return
 	}
-	task := h.getTask(r, taskID, userID)
+	task := h.Task(r, taskID, userID)
 	if task == nil {
 		writeError(w, http.StatusNotFound, "task not found")
 		return
@@ -260,7 +260,7 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	task := h.getTask(r, taskID, userID)
+	task := h.Task(r, taskID, userID)
 	writeJSON(w, http.StatusOK, task)
 }
 
@@ -323,7 +323,7 @@ func (h *TaskHandler) AddTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.getTask(r, taskID, userID) == nil {
+	if h.Task(r, taskID, userID) == nil {
 		writeError(w, http.StatusNotFound, "task not found")
 		return
 	}
@@ -334,7 +334,7 @@ func (h *TaskHandler) AddTag(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, h.getTask(r, taskID, userID))
+	writeJSON(w, http.StatusOK, h.Task(r, taskID, userID))
 }
 
 /**
@@ -363,7 +363,7 @@ func (h *TaskHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
 	}
 	tagName := parts[3]
 
-	if h.getTask(r, taskID, userID) == nil {
+	if h.Task(r, taskID, userID) == nil {
 		writeError(w, http.StatusNotFound, "task not found")
 		return
 	}
@@ -374,7 +374,7 @@ func (h *TaskHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	writeJSON(w, http.StatusOK, h.getTask(r, taskID, userID))
+	writeJSON(w, http.StatusOK, h.Task(r, taskID, userID))
 }
 
 // --- internal helpers ---
@@ -391,7 +391,7 @@ func (h *TaskHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
  * @param userID  Must match the task's user_id column.
  * @return        Pointer to the populated Task, or nil if not found.
  */
-func (h *TaskHandler) getTask(r *http.Request, taskID, userID int64) *models.Task {
+func (h *TaskHandler) Task(r *http.Request, taskID, userID int64) *models.Task {
 	var task models.Task
 	var dueDateStr sql.NullString
 	err := h.DB.QueryRowContext(r.Context(), `
