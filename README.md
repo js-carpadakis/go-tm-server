@@ -1,4 +1,4 @@
-# go-tm-server
+# Go Task Management Server
 
 > Production-patterned Go REST API — JWT auth, SQLite persistence, task CRUD with tag filtering, and a full `httptest`-based test suite.
 
