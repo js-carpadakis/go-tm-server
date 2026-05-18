@@ -4,6 +4,12 @@
 
 ---
 
+## Purpose
+
+The purpose of this project is to help me learn and explore the many facets of Go as a tech stack. Here I can strengthen my understanding of some of Go's core fundamentals, such as the language basics, HTTP server patterns, auth and security, database structure and handling, and testing best practices. I intend to grow my skillset as a software engineer through working in many different languages and toolkits, and Go will likely be a important part of that journey.
+
+---
+
 ## Features
 
 - **JWT authentication** — register and login return signed tokens; all task routes are protected
