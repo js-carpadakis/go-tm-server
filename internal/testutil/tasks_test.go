@@ -8,29 +8,24 @@ import (
 )
 
 func TestTaskCRUD(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	srv := testutil.NewTestServer(t, db)
-	auth := testutil.AuthHeader(t, srv, "user@example.com", "password123")
-	headers := map[string]string{"Authorization": auth}
+	env := newEnv(t)
+	headers := env.auth(t, "user@example.com", "password123")
 
 	// Create
-	resp := testutil.Post(t, srv, "/tasks",
+	resp := testutil.Post(t, env.srv, "/tasks",
 		map[string]any{"title": "Buy milk", "status": "todo"}, headers)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create: got %d", resp.StatusCode)
 	}
-	var task map[string]any
-	testutil.Decode(t, resp, &task)
-	id := task["id"].(float64)
 
 	// Get
-	resp = testutil.Get(t, srv, "/tasks/1", headers)
+	resp = testutil.Get(t, env.srv, "/tasks/1", headers)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("get: got %d", resp.StatusCode)
 	}
 
 	// Update
-	resp = testutil.Put(t, srv, "/tasks/1",
+	resp = testutil.Put(t, env.srv, "/tasks/1",
 		map[string]any{"status": "done"}, headers)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("update: got %d", resp.StatusCode)
@@ -40,49 +35,44 @@ func TestTaskCRUD(t *testing.T) {
 	if updated["status"] != "done" {
 		t.Errorf("status not updated: got %v", updated["status"])
 	}
-	_ = id
 
 	// Delete
-	resp = testutil.Delete(t, srv, "/tasks/1", headers)
+	resp = testutil.Delete(t, env.srv, "/tasks/1", headers)
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete: got %d", resp.StatusCode)
 	}
 
 	// Get after delete → 404
-	resp = testutil.Get(t, srv, "/tasks/1", headers)
+	resp = testutil.Get(t, env.srv, "/tasks/1", headers)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("after delete: got %d, want 404", resp.StatusCode)
 	}
 }
 
 func TestTasksRequireAuth(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	srv := testutil.NewTestServer(t, db)
-
-	resp := testutil.Get(t, srv, "/tasks", nil)
+	env := newEnv(t)
+	resp := testutil.Get(t, env.srv, "/tasks", nil)
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("got %d, want 401", resp.StatusCode)
 	}
 }
 
 func TestOwnershipIsolation(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	srv := testutil.NewTestServer(t, db)
-	authA := testutil.AuthHeader(t, srv, "alice@example.com", "password123")
-	authB := testutil.AuthHeader(t, srv, "bob@example.com", "password123")
+	env := newEnv(t)
+	authA := env.auth(t, "alice@example.com", "password123")
+	authB := env.auth(t, "bob@example.com", "password123")
 
 	// Alice creates a task
-	testutil.Post(t, srv, "/tasks",
-		map[string]any{"title": "Alice task"}, map[string]string{"Authorization": authA})
+	testutil.Post(t, env.srv, "/tasks", map[string]any{"title": "Alice task"}, authA)
 
 	// Bob cannot get Alice's task
-	resp := testutil.Get(t, srv, "/tasks/1", map[string]string{"Authorization": authB})
+	resp := testutil.Get(t, env.srv, "/tasks/1", authB)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("bob got alice's task: status %d", resp.StatusCode)
 	}
 
 	// Bob's list is empty
-	resp = testutil.Get(t, srv, "/tasks", map[string]string{"Authorization": authB})
+	resp = testutil.Get(t, env.srv, "/tasks", authB)
 	var tasks []any
 	testutil.Decode(t, resp, &tasks)
 	if len(tasks) != 0 {
@@ -91,15 +81,13 @@ func TestOwnershipIsolation(t *testing.T) {
 }
 
 func TestFilterByStatus(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	srv := testutil.NewTestServer(t, db)
-	auth := testutil.AuthHeader(t, srv, "user@example.com", "password123")
-	headers := map[string]string{"Authorization": auth}
+	env := newEnv(t)
+	headers := env.auth(t, "user@example.com", "password123")
 
-	testutil.Post(t, srv, "/tasks", map[string]any{"title": "Task A", "status": "todo"}, headers)
-	testutil.Post(t, srv, "/tasks", map[string]any{"title": "Task B", "status": "done"}, headers)
+	testutil.Post(t, env.srv, "/tasks", map[string]any{"title": "Task A", "status": "todo"}, headers)
+	testutil.Post(t, env.srv, "/tasks", map[string]any{"title": "Task B", "status": "done"}, headers)
 
-	resp := testutil.Get(t, srv, "/tasks?status=todo", headers)
+	resp := testutil.Get(t, env.srv, "/tasks?status=todo", headers)
 	var tasks []map[string]any
 	testutil.Decode(t, resp, &tasks)
 	if len(tasks) != 1 {
@@ -111,17 +99,15 @@ func TestFilterByStatus(t *testing.T) {
 }
 
 func TestFilterByTag(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	srv := testutil.NewTestServer(t, db)
-	auth := testutil.AuthHeader(t, srv, "user@example.com", "password123")
-	headers := map[string]string{"Authorization": auth}
+	env := newEnv(t)
+	headers := env.auth(t, "user@example.com", "password123")
 
-	testutil.Post(t, srv, "/tasks",
+	testutil.Post(t, env.srv, "/tasks",
 		map[string]any{"title": "Tagged", "tags": []string{"work"}}, headers)
-	testutil.Post(t, srv, "/tasks",
+	testutil.Post(t, env.srv, "/tasks",
 		map[string]any{"title": "Untagged"}, headers)
 
-	resp := testutil.Get(t, srv, "/tasks?tag=work", headers)
+	resp := testutil.Get(t, env.srv, "/tasks?tag=work", headers)
 	var tasks []map[string]any
 	testutil.Decode(t, resp, &tasks)
 	if len(tasks) != 1 {
@@ -130,15 +116,13 @@ func TestFilterByTag(t *testing.T) {
 }
 
 func TestAddAndRemoveTag(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	srv := testutil.NewTestServer(t, db)
-	auth := testutil.AuthHeader(t, srv, "user@example.com", "password123")
-	headers := map[string]string{"Authorization": auth}
+	env := newEnv(t)
+	headers := env.auth(t, "user@example.com", "password123")
 
-	testutil.Post(t, srv, "/tasks", map[string]any{"title": "My task"}, headers)
+	testutil.Post(t, env.srv, "/tasks", map[string]any{"title": "My task"}, headers)
 
 	// Add tag
-	resp := testutil.Post(t, srv, "/tasks/1/tags",
+	resp := testutil.Post(t, env.srv, "/tasks/1/tags",
 		map[string]any{"tags": []string{"urgent"}}, headers)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("add tag: got %d", resp.StatusCode)
@@ -151,7 +135,7 @@ func TestAddAndRemoveTag(t *testing.T) {
 	}
 
 	// Remove tag
-	resp = testutil.Delete(t, srv, "/tasks/1/tags/urgent", headers)
+	resp = testutil.Delete(t, env.srv, "/tasks/1/tags/urgent", headers)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("remove tag: got %d", resp.StatusCode)
 	}
@@ -163,12 +147,10 @@ func TestAddAndRemoveTag(t *testing.T) {
 }
 
 func TestInvalidStatus(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	srv := testutil.NewTestServer(t, db)
-	auth := testutil.AuthHeader(t, srv, "user@example.com", "password123")
-	headers := map[string]string{"Authorization": auth}
+	env := newEnv(t)
+	headers := env.auth(t, "user@example.com", "password123")
 
-	resp := testutil.Post(t, srv, "/tasks",
+	resp := testutil.Post(t, env.srv, "/tasks",
 		map[string]any{"title": "Task", "status": "invalid"}, headers)
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("got %d, want 400", resp.StatusCode)

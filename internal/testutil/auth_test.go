@@ -19,9 +19,8 @@ func TestRegister(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			db := testutil.NewTestDB(t)
-			srv := testutil.NewTestServer(t, db)
-			resp := testutil.Post(t, srv, "/auth/register", tc.body, nil)
+			env := newEnv(t)
+			resp := testutil.Post(t, env.srv, "/auth/register", tc.body, nil)
 			if resp.StatusCode != tc.status {
 				t.Errorf("got %d, want %d", resp.StatusCode, tc.status)
 			}
@@ -30,20 +29,18 @@ func TestRegister(t *testing.T) {
 }
 
 func TestRegisterDuplicateEmail(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	srv := testutil.NewTestServer(t, db)
+	env := newEnv(t)
 	body := map[string]string{"email": "dup@example.com", "password": "password123"}
-	testutil.Post(t, srv, "/auth/register", body, nil)
-	resp := testutil.Post(t, srv, "/auth/register", body, nil)
+	testutil.Post(t, env.srv, "/auth/register", body, nil)
+	resp := testutil.Post(t, env.srv, "/auth/register", body, nil)
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("got %d, want %d", resp.StatusCode, http.StatusConflict)
 	}
 }
 
 func TestLogin(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	srv := testutil.NewTestServer(t, db)
-	testutil.Post(t, srv, "/auth/register",
+	env := newEnv(t)
+	testutil.Post(t, env.srv, "/auth/register",
 		map[string]string{"email": "user@example.com", "password": "password123"}, nil)
 
 	cases := []struct {
@@ -57,7 +54,7 @@ func TestLogin(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			resp := testutil.Post(t, srv, "/auth/login", tc.body, nil)
+			resp := testutil.Post(t, env.srv, "/auth/login", tc.body, nil)
 			if resp.StatusCode != tc.status {
 				t.Errorf("got %d, want %d", resp.StatusCode, tc.status)
 			}
@@ -66,11 +63,10 @@ func TestLogin(t *testing.T) {
 }
 
 func TestLoginReturnsToken(t *testing.T) {
-	db := testutil.NewTestDB(t)
-	srv := testutil.NewTestServer(t, db)
-	testutil.Post(t, srv, "/auth/register",
+	env := newEnv(t)
+	testutil.Post(t, env.srv, "/auth/register",
 		map[string]string{"email": "tok@example.com", "password": "password123"}, nil)
-	resp := testutil.Post(t, srv, "/auth/login",
+	resp := testutil.Post(t, env.srv, "/auth/login",
 		map[string]string{"email": "tok@example.com", "password": "password123"}, nil)
 	var body struct {
 		Token string `json:"token"`
